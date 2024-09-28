@@ -1,0 +1,28 @@
+{
+  "name": "workflow",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "tsc && node dist/index.js",
+    "build": "tsc",
+    "lint": "eslint .",
+    "format": "prettier ."
+  },
+  "keywords": [],
+  "author": "Dario Bugmann",
+  "license": "ISC",
+  "dependencies": {
+    "commander": "^12.1.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.2",
+    "yaml": "^2.5.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.11.1",
+    "@types/node": "^22.7.4",
+    "eslint": "^9.11.1",
+    "globals": "^15.9.0",
+    "typescript-eslint": "^8.7.0"
+  }
+}
