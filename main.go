@@ -15,7 +15,7 @@ import (
 type Session struct {
 	Name       string
 	Path       string
-	Type       string // e.g., "worktreeroot"
+	Type       string
 	Tmuxinator string
 }
 
@@ -223,8 +223,12 @@ func connectSessionCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "connect <session>",
 		Short: "Connect to a given session",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				return nil
+			}
+
 			sessionName := args[0]
 			sessions, err := getSessions()
 			if err != nil {
