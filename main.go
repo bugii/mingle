@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"strings"
 
@@ -50,6 +51,14 @@ func loadConfig() ([]ConfigSession, error) {
 	var config []ConfigSession
 	if err := yaml.Unmarshal(data, &config); err != nil {
 		return nil, err
+	}
+
+	for i := range config {
+		expandedPath, err := expandHomePath(config[i].Path)
+		if err != nil {
+			return nil, err
+		}
+		config[i].Path = expandedPath
 	}
 
 	return config, nil
@@ -256,6 +265,17 @@ func connectSessionCmd() *cobra.Command {
 			return switchToTmuxSession(selectedSession.Name)
 		},
 	}
+}
+
+func expandHomePath(path string) (string, error) {
+	if strings.HasPrefix(path, "~") {
+		usr, err := user.Current()
+		if err != nil {
+			return "", err
+		}
+		path = filepath.Join(usr.HomeDir, path[1:])
+	}
+	return path, nil
 }
 
 func main() {
