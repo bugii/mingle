@@ -7,6 +7,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -104,14 +105,28 @@ func getSessions() ([]Session, error) {
 	}
 
 	var sessions []Session
-	sessions = append(sessions, tmuxSessions...)
-	sessions = append(sessions, configSessions...)
-	sessions = append(sessions, configWorktreeSessions...)
-	sessions = append(sessions, zoxideSessions...)
+	sessionNames := make(map[string]struct{})
 
-	// Replace dots in session names
-	for i, s := range sessions {
-		sessions[i].Name = strings.ReplaceAll(s.Name, ".", "_")
+	addSession := func(s Session) {
+		name := strings.ReplaceAll(s.Name, ".", "_")
+		if _, exists := sessionNames[name]; !exists {
+			s.Name = name
+			sessions = append(sessions, s)
+			sessionNames[name] = struct{}{}
+		}
+	}
+
+	for _, s := range tmuxSessions {
+		addSession(s)
+	}
+	for _, s := range configSessions {
+		addSession(s)
+	}
+	for _, s := range configWorktreeSessions {
+		addSession(s)
+	}
+	for _, s := range zoxideSessions {
+		addSession(s)
 	}
 
 	return sessions, nil
@@ -260,13 +275,37 @@ func connectSessionCmd() *cobra.Command {
 				}
 			}
 
-			if !sessionExists {
-				if err := createTmuxSession(*selectedSession); err != nil {
-					return err
+			if isInsideTmuxSession() {
+				if !sessionExists {
+					if err := createTmuxSession(*selectedSession); err != nil {
+						return err
+					}
+				}
+				return switchToTmuxSession(selectedSession.Name)
+			} else {
+				if !sessionExists {
+					if err := createTmuxSession(*selectedSession); err != nil {
+						return err
+					}
+				}
+
+				tmuxPath, err := exec.LookPath("tmux")
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Error finding tmux: %v\n", err)
+					os.Exit(1)
+				}
+
+				args := []string{"tmux", "attach-session", "-t", sessionName}
+				env := os.Environ()
+
+				// Replace the current process with the tmux command
+				if err := syscall.Exec(tmuxPath, args, env); err != nil {
+					fmt.Fprintf(os.Stderr, "Error executing tmux: %v\n", err)
+					os.Exit(1)
 				}
 			}
 
-			return switchToTmuxSession(selectedSession.Name)
+			return nil
 		},
 	}
 }
@@ -295,4 +334,8 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+}
+
+func isInsideTmuxSession() bool {
+	return os.Getenv("TMUX") != ""
 }
