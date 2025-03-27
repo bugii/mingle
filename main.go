@@ -71,24 +71,14 @@ func getSessions() ([]Session, error) {
 		return nil, err
 	}
 
-	tmuxSessions, err := getTmuxSessions()
-	if err != nil {
-		return nil, err
-	}
-
-	zoxideSessions, err := getZoxideResults()
-	if err != nil {
-		return nil, err
-	}
+	tmuxSessions := getTmuxSessions()
+	zoxideSessions := getZoxideResults()
 
 	var configSessions, configWorktreeSessions []Session
 
 	for _, c := range config {
 		if c.Type != nil && *c.Type == "worktreeroot" {
-			worktrees, err := getGitWorktrees(c.Path)
-			if err != nil {
-				return nil, err
-			}
+			worktrees := getGitWorktrees(c.Path)
 			for _, w := range worktrees {
 				configWorktreeSessions = append(configWorktreeSessions, Session{
 					Name: w, Path: w, Type: *c.Type, Tmuxinator: c.Tmuxinator,
@@ -132,11 +122,11 @@ func getSessions() ([]Session, error) {
 	return sessions, nil
 }
 
-func getTmuxSessions() ([]Session, error) {
+func getTmuxSessions() []Session {
 	cmd := exec.Command("tmux", "list-sessions", "-F", "#{session_name}")
 	output, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("error executing tmux command: %v", err)
+		return []Session{}
 	}
 
 	lines := strings.Split(string(output), "\n")
@@ -147,14 +137,14 @@ func getTmuxSessions() ([]Session, error) {
 		}
 	}
 
-	return sessions, nil
+	return sessions
 }
 
-func getZoxideResults() ([]Session, error) {
+func getZoxideResults() []Session {
 	cmd := exec.Command("zoxide", "query", "-l")
 	output, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("error executing zoxide command: %v", err)
+		return []Session{}
 	}
 
 	lines := strings.Split(string(output), "\n")
@@ -165,14 +155,14 @@ func getZoxideResults() ([]Session, error) {
 		}
 	}
 
-	return results, nil
+	return results
 }
 
-func getGitWorktrees(worktreeRoot string) ([]string, error) {
+func getGitWorktrees(worktreeRoot string) []string {
 	cmd := exec.Command("git", "-C", worktreeRoot, "worktree", "list", "--porcelain")
 	output, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("error fetching git worktrees: %v", err)
+		return []string{}
 	}
 
 	lines := strings.Split(string(output), "\n")
@@ -183,7 +173,7 @@ func getGitWorktrees(worktreeRoot string) ([]string, error) {
 		}
 	}
 
-	return worktrees, nil
+	return worktrees
 }
 
 func switchToTmuxSession(sessionName string) error {
@@ -262,10 +252,7 @@ func connectSessionCmd() *cobra.Command {
 				return fmt.Errorf("session %s not found", sessionName)
 			}
 
-			tmuxSessions, err := getTmuxSessions()
-			if err != nil {
-				return err
-			}
+			tmuxSessions := getTmuxSessions()
 
 			sessionExists := false
 			for _, s := range tmuxSessions {
@@ -321,6 +308,10 @@ func expandHomePath(path string) (string, error) {
 	return path, nil
 }
 
+func isInsideTmuxSession() bool {
+	return os.Getenv("TMUX") != ""
+}
+
 func main() {
 	rootCmd := &cobra.Command{
 		Use:   "mingle",
@@ -334,8 +325,4 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-}
-
-func isInsideTmuxSession() bool {
-	return os.Getenv("TMUX") != ""
 }
